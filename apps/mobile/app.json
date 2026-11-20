@@ -34,7 +34,8 @@
             "minSdkVersion": 29
           }
         }
-      ]
+      ],
+      "./modules/protecao-android/plugin"
     ],
     "experiments": {
       "typedRoutes": true

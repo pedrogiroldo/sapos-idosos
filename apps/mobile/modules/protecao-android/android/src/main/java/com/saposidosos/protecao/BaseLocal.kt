@@ -16,13 +16,14 @@ class BaseLocal(
 
   fun gravar(numeros: Map<String, String>, versao: Int) {
     prefs.edit()
-      .putString(CHAVE_NUMEROS, JSONObject(numeros).toString())
+      .putString(CHAVE_NUMEROS, JSONObject(normalizarChaves(numeros)).toString())
       .putInt(CHAVE_VERSAO, versao)
       .commit()
   }
 
   fun adicionarTeste(numero: String, tipo: String) {
-    val teste = ler(CHAVE_TESTE) + (numero to tipo)
+    val normalizado = Numero.normalizar(numero) ?: return
+    val teste = ler(CHAVE_TESTE) + (normalizado to tipo)
     prefs.edit().putString(CHAVE_TESTE, JSONObject(teste).toString()).commit()
   }
 
@@ -35,6 +36,11 @@ class BaseLocal(
     set(valor) {
       prefs.edit().putString(CHAVE_REGRA, valor.name).commit()
     }
+
+  private fun normalizarChaves(numeros: Map<String, String>): Map<String, String> =
+    numeros.entries
+      .mapNotNull { (numero, tipo) -> Numero.normalizar(numero)?.let { it to tipo } }
+      .toMap()
 
   private fun ler(chave: String): Map<String, String> {
     val texto = prefs.getString(chave, null) ?: return emptyMap()

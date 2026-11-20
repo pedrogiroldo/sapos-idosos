@@ -1,5 +1,20 @@
 import { NativeModule, requireNativeModule } from 'expo';
 
-declare class ProtecaoAndroidModule extends NativeModule<{}> {}
+import type { NumeroGolpe, Regra, TipoGolpe } from './ProtecaoAndroid.types';
+
+declare class ProtecaoAndroidModule extends NativeModule<{}> {
+  temPapelTriagem(): boolean;
+  pedirPapelTriagem(): Promise<boolean>;
+  ehTelaInicialPadrao(): boolean;
+  abrirEscolhaTelaInicial(): void;
+  podeAvisar(): boolean;
+  gravarBase(numeros: NumeroGolpe[], versao: number): void;
+  adicionarNumeroTeste(numero: string, tipo: TipoGolpe): void;
+  versaoBase(): number;
+  totalNumeros(): number;
+  definirRegra(regra: Regra): void;
+  regra(): Regra;
+  encerrarChamada(): boolean;
+}
 
 export default requireNativeModule<ProtecaoAndroidModule>('ProtecaoAndroid');
