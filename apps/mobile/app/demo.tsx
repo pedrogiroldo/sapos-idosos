@@ -22,6 +22,7 @@ export default function Demo() {
   const [regra, setRegra] = useState<Regra>(() => lerRegra());
   const [total, setTotal] = useState(() => totalNumeros());
   const [numero, setNumero] = useState('');
+  const [invalido, setInvalido] = useState(false);
 
   const outraRegra: Regra = regra === 'avisar' ? 'bloquear' : 'avisar';
   const trocarRegra = () => {
@@ -31,8 +32,12 @@ export default function Demo() {
   const adicionar = () => {
     if (!numero.trim()) return;
     adicionarNumeroTeste(numero.trim(), 'falso_banco');
-    setTotal(totalNumeros());
-    setNumero('');
+    const novoTotal = totalNumeros();
+    // O módulo ignora o que não parece número brasileiro; o total não muda.
+    const entrou = novoTotal > total;
+    setInvalido(!entrou);
+    setTotal(novoTotal);
+    if (entrou) setNumero('');
   };
 
   const linhas = [
@@ -87,6 +92,9 @@ export default function Demo() {
         >
           <Text style={[type.pAction, { color: tema.onBrand }]}>Adicionar</Text>
         </Pressable>
+        {invalido ? (
+          <Text style={[type.fBody, { color: tema.dangerInk }]}>Número inválido. Use DDD + número.</Text>
+        ) : null}
       </View>
 
       <Pressable

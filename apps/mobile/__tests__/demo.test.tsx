@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import { PermissionsAndroid } from 'react-native';
+import { PermissionsAndroid, StyleSheet } from 'react-native';
 
 import Demo from '../app/demo';
 import * as nativo from '../modules/protecao-android';
@@ -54,6 +54,25 @@ describe('painel de demo', () => {
     await fireEvent.press(screen.getByText('Adicionar'));
     expect(nativo.adicionarNumeroTeste).toHaveBeenCalledWith('+5511900000009', 'falso_banco');
     expect(screen.getByText('Números na base: 4')).toBeTruthy();
+  });
+
+  it('avisa quando o número não entrou na base', async () => {
+    await render(<Demo />);
+    await screen.findByText('Versão da base: 7');
+    await fireEvent.changeText(screen.getByPlaceholderText('Número de teste'), '123');
+    await fireEvent.press(screen.getByText('Adicionar'));
+    const aviso = screen.getByText('Número inválido. Use DDD + número.');
+    expect(StyleSheet.flatten(aviso.props.style).fontSize).toBeGreaterThanOrEqual(17);
+    expect(screen.getByText('Números na base: 3')).toBeTruthy();
+  });
+
+  it('não mostra o aviso quando o número entrou', async () => {
+    await render(<Demo />);
+    await screen.findByText('Versão da base: 7');
+    mock(nativo.totalNumeros).mockReturnValue(4);
+    await fireEvent.changeText(screen.getByPlaceholderText('Número de teste'), '11900000009');
+    await fireEvent.press(screen.getByText('Adicionar'));
+    expect(screen.queryByText('Número inválido. Use DDD + número.')).toBeNull();
   });
 
   it('"Voltar ao início" volta para /inicio', async () => {
