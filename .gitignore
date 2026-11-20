@@ -1,1 +1,9 @@
+node_modules/
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+*.apk
+.env*
+apps/api/prisma/seed.demo.json
+.superpowers/
 .remember/
