@@ -83,6 +83,8 @@ class ProtecaoAndroidModule : Module() {
 
     Function("podeAvisar") { AlertaNotificacao.podeAvisar(context) }
 
+    Function("podeUsarTelaCheia") { AlertaNotificacao.podeUsarTelaCheia(context) }
+
     Function("cancelarAlerta") { AlertaNotificacao.cancelar(context) }
 
     // Traz a tela da ligação do Android para a frente. Sem READ_PHONE_STATE, só tira o app da frente.

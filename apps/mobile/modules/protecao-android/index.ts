@@ -9,6 +9,7 @@ export const pedirPapelTriagem = (): Promise<boolean> => Nativo.pedirPapelTriage
 export const ehTelaInicialPadrao = (): boolean => Nativo.ehTelaInicialPadrao();
 export const abrirEscolhaTelaInicial = (): void => Nativo.abrirEscolhaTelaInicial();
 export const podeAvisar = (): boolean => Nativo.podeAvisar();
+export const podeUsarTelaCheia = (): boolean => Nativo.podeUsarTelaCheia();
 export const cancelarAlerta = (): void => Nativo.cancelarAlerta();
 export const mostrarTelaChamada = (): void => Nativo.mostrarTelaChamada();
 export const gravarBase = (numeros: NumeroGolpe[], versao: number): void =>

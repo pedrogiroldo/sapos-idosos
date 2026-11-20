@@ -24,16 +24,16 @@ object AlertaNotificacao {
   private const val ID_NOTIFICACAO = 4001
 
   /** Notificações ligadas, canal do alerta ativo e, no Android 14+, permissão de abrir em tela cheia. */
-  fun podeAvisar(context: Context): Boolean {
-    val gerenciador = context.getSystemService(NotificationManager::class.java)
-    val fsiPermitido = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
-      gerenciador.canUseFullScreenIntent()
-    return podeAvisarCom(
-      NotificationManagerCompat.from(context).areNotificationsEnabled(),
-      fsiPermitido,
-      gerenciador.getNotificationChannel(CANAL)?.importance,
-    )
-  }
+  fun podeAvisar(context: Context): Boolean = podeAvisarCom(
+    NotificationManagerCompat.from(context).areNotificationsEnabled(),
+    podeUsarTelaCheia(context),
+    context.getSystemService(NotificationManager::class.java).getNotificationChannel(CANAL)?.importance,
+  )
+
+  /** Abaixo do Android 14 a tela cheia não depende de permissão do usuário. */
+  fun podeUsarTelaCheia(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+      context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
 
   fun cancelar(context: Context) {
     NotificationManagerCompat.from(context).cancel(ID_NOTIFICACAO)

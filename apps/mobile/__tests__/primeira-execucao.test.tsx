@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { AppState, Linking, PermissionsAndroid, Platform } from 'react-native';
 
 import PrimeiraExecucao from '../app/primeira-execucao';
@@ -14,10 +15,12 @@ jest.mock('expo-router', () => ({
     return null;
   },
 }));
+jest.mock('expo-intent-launcher', () => ({ startActivityAsync: jest.fn() }));
 jest.mock('../modules/protecao-android', () => ({
   ehTelaInicialPadrao: jest.fn(),
   temPapelTriagem: jest.fn(),
   podeAvisar: jest.fn(),
+  podeUsarTelaCheia: jest.fn(),
   abrirEscolhaTelaInicial: jest.fn(),
   pedirPapelTriagem: jest.fn(),
 }));
@@ -32,10 +35,14 @@ function definir(e: typeof todos) {
   jest.spyOn(PermissionsAndroid, 'check').mockResolvedValue(e.encerrar);
 }
 
+const abrirIntent = IntentLauncher.startActivityAsync as jest.Mock;
+
 beforeEach(() => {
   jest.clearAllMocks();
   reiniciarEstadoDaExecucao();
   definir(todos);
+  mock(nativo.podeUsarTelaCheia).mockReturnValue(true);
+  abrirIntent.mockReset().mockResolvedValue({ resultCode: 0 });
 });
 
 describe('proximaPendente', () => {
@@ -154,15 +161,73 @@ describe('primeira execução', () => {
     expect(abrir).not.toHaveBeenCalled();
   });
 
-  it('triagem: se o papel for negado, o toque seguinte abre as configurações', async () => {
+  it('triagem: negado uma vez, o toque seguinte pede de novo', async () => {
     definir({ ...todos, triagem: false });
     mock(nativo.pedirPapelTriagem).mockResolvedValue(false);
     const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
     await render(<PrimeiraExecucao />);
     await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    expect(nativo.pedirPapelTriagem).toHaveBeenCalledTimes(1);
+    expect(abrirIntent).not.toHaveBeenCalled();
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    expect(nativo.pedirPapelTriagem).toHaveBeenCalledTimes(2);
     expect(abrir).not.toHaveBeenCalled();
+  });
+
+  it('triagem: negado duas vezes, abre os apps padrão e não pede mais', async () => {
+    definir({ ...todos, triagem: false });
+    mock(nativo.pedirPapelTriagem).mockResolvedValue(false);
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    expect(abrirIntent).toHaveBeenCalledWith('android.settings.MANAGE_DEFAULT_APPS_SETTINGS');
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    expect(nativo.pedirPapelTriagem).toHaveBeenCalledTimes(2);
+    expect(abrirIntent).toHaveBeenCalledTimes(2);
+  });
+
+  it('triagem: sem a tela de apps padrão, abre as configurações do app', async () => {
+    definir({ ...todos, triagem: false });
+    mock(nativo.pedirPapelTriagem).mockResolvedValue(false);
+    abrirIntent.mockRejectedValue(new Error('sem activity'));
+    const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
     await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
     expect(abrir).toHaveBeenCalledTimes(1);
-    expect(nativo.pedirPapelTriagem).toHaveBeenCalledTimes(1);
+  });
+
+  it('avisar: Android 14+ com notificações ligadas e sem tela cheia abre a permissão de tela cheia', async () => {
+    jest.spyOn(Platform, 'Version', 'get').mockReturnValue(34);
+    definir({ ...todos, avisar: false });
+    mock(nativo.podeUsarTelaCheia).mockReturnValue(false);
+    jest.spyOn(PermissionsAndroid, 'request').mockResolvedValue('granted');
+    const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Permitir avisos'));
+    expect(abrirIntent).toHaveBeenCalledWith('android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT', {
+      data: 'package:com.saposidosos.app',
+    });
+    expect(abrir).not.toHaveBeenCalled();
+  });
+
+  it('avisar: notificações negadas abre as configurações do app, não a de tela cheia', async () => {
+    jest.spyOn(Platform, 'Version', 'get').mockReturnValue(34);
+    definir({ ...todos, avisar: false });
+    mock(nativo.podeUsarTelaCheia).mockReturnValue(false);
+    jest.spyOn(PermissionsAndroid, 'request').mockResolvedValue('denied');
+    const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Permitir avisos'));
+    expect(abrirIntent).not.toHaveBeenCalled();
+    expect(abrir).toHaveBeenCalled();
+  });
+
+  it('se a leitura nativa falhar, mostra o primeiro passo em vez de tela vazia', async () => {
+    mock(nativo.temPapelTriagem).mockImplementation(() => {
+      throw new Error('módulo indisponível');
+    });
+    await render(<PrimeiraExecucao />);
+    expect(await screen.findByText('Usar como tela inicial')).toBeTruthy();
   });
 });
