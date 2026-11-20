@@ -88,4 +88,13 @@ describe('plugin protecao-android', () => {
     );
     expect(filtrosHome).toHaveLength(1);
   });
+
+  it('declara o esquema whatsapp em queries, uma só vez', () => {
+    const uma = aplicarManifesto(manifestoMinimo());
+    const duas = aplicarManifesto(uma);
+    const queries = (duas.manifest as unknown as { queries: { intent: { data: unknown[] }[] }[] })
+      .queries;
+    const esquemas = JSON.stringify(queries).match(/"android:scheme":"whatsapp"/g);
+    expect(esquemas).toHaveLength(1);
+  });
 });

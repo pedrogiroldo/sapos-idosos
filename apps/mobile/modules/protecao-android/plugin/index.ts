@@ -39,6 +39,21 @@ export function aplicarManifesto(manifesto: Manifesto): Manifesto {
   });
   atividade['intent-filter'] = filtros;
 
+  // Sem isso, Linking.canOpenURL('whatsapp://send') sempre dá false no Android 11+.
+  type Consultas = { intent?: { data?: { $: { 'android:scheme': string } }[] }[] };
+  const raiz = manifesto.manifest as unknown as { queries?: Consultas[] };
+  const consultas = raiz.queries ?? [{}];
+  const jaTem = consultas.some((q) =>
+    (q.intent ?? []).some((i) => (i.data ?? []).some((d) => d.$['android:scheme'] === 'whatsapp')),
+  );
+  if (!jaTem) {
+    consultas[0].intent = [
+      ...(consultas[0].intent ?? []),
+      { data: [{ $: { 'android:scheme': 'whatsapp' } }] },
+    ];
+  }
+  raiz.queries = consultas;
+
   return manifesto;
 }
 
