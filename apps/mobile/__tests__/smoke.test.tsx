@@ -6,6 +6,7 @@ import Inicio from '../app/inicio';
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   Redirect: () => null,
+  useFocusEffect: jest.fn(),
 }));
 jest.mock('expo-intent-launcher', () => ({ startActivityAsync: jest.fn() }));
 jest.mock('../modules/protecao-android', () => ({

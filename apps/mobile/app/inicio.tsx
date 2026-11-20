@@ -1,6 +1,6 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { Camera, Image as Foto, MessageCircle, Phone, ShieldCheck } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { atalhos, type AtalhoId } from '../src/atalhos';
@@ -48,11 +48,14 @@ export default function Inicio() {
   const agora = useAgora();
   const redirecionar = useRef<boolean | null>(null);
 
-  // Tela inicial do celular: "voltar" não sai do app.
-  useEffect(() => {
-    const assinatura = BackHandler.addEventListener('hardwareBackPress', () => true);
-    return () => assinatura.remove();
-  }, []);
+  // Tela inicial do celular: "voltar" não sai do app. Só vale com /inicio em foco,
+  // para o "voltar" das outras telas continuar funcionando.
+  useFocusEffect(
+    useCallback(() => {
+      const assinatura = BackHandler.addEventListener('hardwareBackPress', () => true);
+      return () => assinatura.remove();
+    }, []),
+  );
 
   if (!estado) return <View style={[styles.tela, { backgroundColor: tema.surfacePage }]} />;
   const pendente = proximaPendente(estado) !== null;
@@ -108,7 +111,7 @@ export default function Inicio() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => router.push('/golpe' as never)}
+        onPress={() => router.push('/golpe')}
         style={[styles.botao, { backgroundColor: tema.brand }]}
       >
         <Text style={[type.pAction, { color: tema.onBrand }]}>Isso é golpe?</Text>

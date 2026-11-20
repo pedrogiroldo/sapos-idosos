@@ -8,8 +8,14 @@ import { reiniciarEstadoDaExecucao } from '../src/estadoPermissoes';
 import * as nativo from '../modules/protecao-android';
 
 const mockRedirect = jest.fn();
+// Controla se /inicio está em foco: em foco, o efeito roda (e limpa ao sair de foco).
+let mockEmFoco = true;
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  useFocusEffect: (efeito: () => void | (() => void)) => {
+    const { useEffect } = jest.requireActual('react');
+    useEffect(() => (mockEmFoco ? efeito() : undefined), [efeito]);
+  },
   Redirect: ({ href }: { href: string }) => {
     mockRedirect(href);
     return null;
@@ -36,6 +42,7 @@ function tudoConcedido(concedido: boolean) {
 beforeEach(() => {
   jest.clearAllMocks();
   reiniciarEstadoDaExecucao();
+  mockEmFoco = true;
   jest.useFakeTimers({ now: new Date(2026, 10, 19, 14, 30), advanceTimers: true });
   tudoConcedido(true);
 });
@@ -82,6 +89,23 @@ describe('tela inicial', () => {
     await screen.findByText('14:30');
     const chamada = add.mock.calls.find(([evento]) => evento === 'hardwareBackPress');
     expect((chamada![1] as () => boolean)()).toBe(true);
+  });
+
+  it('"voltar" só fica preso enquanto /inicio está em foco', async () => {
+    mockEmFoco = false;
+    const add = jest.spyOn(BackHandler, 'addEventListener');
+    await render(<Inicio />);
+    await screen.findByText('14:30');
+    expect(add.mock.calls.some(([evento]) => evento === 'hardwareBackPress')).toBe(false);
+  });
+
+  it('ao sair da tela, solta o "voltar"', async () => {
+    const remove = jest.fn();
+    jest.spyOn(BackHandler, 'addEventListener').mockReturnValue({ remove });
+    const tela = await render(<Inicio />);
+    await screen.findByText('14:30');
+    await tela.unmount();
+    expect(remove).toHaveBeenCalled();
   });
 
   it('toque longo no relógio abre o painel de demo', async () => {
