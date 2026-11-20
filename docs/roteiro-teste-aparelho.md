@@ -23,35 +23,34 @@ Use uma tabela de resultados por marca (copie a tabela do fim do arquivo).
 
 - Celular com depuração USB ligada e conectado (`adb devices` lista o aparelho).
 - Um segundo celular (o "celular de teste") para fazer as ligações.
+- Um terceiro celular, com número fora da base, para o passo (e).
 - O número do celular de teste NÃO pode estar na lista de contatos do aparelho testado.
   O Android só envia à triagem ligações de números que não são contatos.
 - Aparelho testado com chip e rede móvel funcionando.
 
 ## Instalação
 
-Compilação com JDK 17:
+Os testes (a) a (h) rodam num build **release**, com o JavaScript embutido no APK:
+assim o alerta abre mesmo com o app fechado à força e sem computador por perto.
+O template do Expo assina o release com a chave de depuração, então não precisa de chave própria.
 
 ```bash
 export JAVA_HOME=~/.sdkman/candidates/java/17.0.13-tem
 export ANDROID_HOME=/home/pedrogiroldo/Android/Sdk
 cd apps/mobile
-npx expo run:android --device
+npx expo run:android --variant release --device
 ```
 
-Alternativa (só a arquitetura do aparelho, compila mais rápido). Gere o projeto nativo
-uma vez com `npx expo prebuild --platform android` se a pasta `android/` ainda não existir; depois:
+Não precisa do Metro para o build release.
 
-```bash
-cd apps/mobile/android
-./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+### Só para desenvolvimento (não use para os testes (a)–(h))
 
-O build de desenvolvimento precisa do Metro rodando, em outro terminal:
+O build de desenvolvimento depende do Metro rodando no computador:
 
 ```bash
 cd apps/mobile
-npx expo start --dev-client
+npx expo run:android --device        # instala o build de desenvolvimento
+npx expo start --dev-client          # em outro terminal
 ```
 
 Com o aparelho no USB, se o app não achar o Metro: `adb reverse tcp:8081 tcp:8081`.
@@ -68,7 +67,8 @@ Só aparecem linhas quando algo dá errado (erro na triagem cai em "a ligação 
 
 1. Abra o app. Na primeira execução aparece "Vamos proteger seu celular", com 4 passos
    (cada toque leva ao diálogo do Android; ao voltar, o app avança sozinho):
-   1. "Usar como tela inicial": escolha "App família" e "Sempre".
+   1. "Usar como tela inicial": abre a tela "App de início padrão" do Android (não há botão "Sempre").
+      Marque "App família" como app de início e volte.
    2. "Ativar aviso de golpe": aceite o papel de triagem de chamadas.
    3. "Permitir avisos": aceite notificações (e, no Android 14+, o uso de tela cheia, nas configurações do app).
    4. "Permitir desligar golpista": aceite "Fazer e gerenciar chamadas".
@@ -87,8 +87,10 @@ Em todos, a ligação vem do celular de teste para o aparelho testado.
 ### (a) Ligar com o app aberto
 
 - Deixe o app na tela inicial e ligue.
-- Esperado: o telefone NÃO toca (silenciado) e a tela vermelha "Cuidado! Pode ser golpe" abre em tela cheia,
+- Esperado: o telefone NÃO toca (silenciado) e a tela vermelha "Cuidado! Pode ser golpe" abre direto,
   com o número do celular de teste formatado, o texto do tipo de golpe e os botões "Não atender" e "Atender mesmo assim".
+- Se em vez disso aparecer só a notificação no topo ("Cuidado! Pode ser golpe. Não atenda."), toque nela:
+  ela deve abrir o mesmo alerta. Anote nas observações qual dos dois aconteceu.
 
 ### (b) Ligar com a tela bloqueada
 
@@ -115,8 +117,8 @@ Em todos, a ligação vem do celular de teste para o aparelho testado.
 
 ### (e) Número fora da base toca normal
 
-- Ligue de um terceiro número que NÃO esteja na base (ou, sem terceiro aparelho, remova o celular de teste
-  limpando os dados do app em Configurações e refaça só a preparação sem adicionar o número).
+- Precisa de um terceiro celular, cujo número NÃO esteja na base (e que também não seja contato do aparelho testado).
+  Ligue dele.
 - Esperado: o telefone toca normalmente e nenhum alerta aparece. Com regra "bloquear" também toca (só números da base são bloqueados).
 
 ### (f) "Não atender" e "Atender mesmo assim"
@@ -127,8 +129,9 @@ Regra "avisar". Faça duas ligações.
    Esperado: a ligação é encerrada (no celular de teste, a chamada cai) e o app volta à tela inicial.
    Sem a permissão "Fazer e gerenciar chamadas", a ligação continua e o app volta à tela inicial.
 2. Ligue de novo e toque em "Atender mesmo assim".
-   Esperado: o app volta à tela inicial. A ligação NÃO é encerrada e continua silenciada pela triagem;
-   para atender, use a tela do telefone (discador/notificação de chamada do Android). Anote como ficou a experiência.
+   Esperado: o aviso some e a tela de ligação do Android vem para a frente, para atender ali.
+   A ligação NÃO é encerrada (continua silenciada pela triagem). Se a tela de ligação não aparecer
+   e o app só sair da frente, anote; atender pela notificação de chamada também vale.
 
 ### (g) Botão Home e botão voltar ficam na tela inicial
 
@@ -137,6 +140,7 @@ Regra "avisar". Faça duas ligações.
 - Aperte o botão voltar (ou o gesto de voltar) várias vezes.
   Esperado: nada acontece; o app não fecha nem sai para outra tela.
 - Abra um atalho (ex.: Câmera) e volte com o botão voltar: deve retornar à tela inicial do app.
+- Toque em "Isso é golpe?" e aperte voltar: deve voltar à tela inicial (o voltar só fica preso na tela inicial).
 
 ### (h) Negar notificações: a ligação toca sem silenciar
 
