@@ -68,6 +68,15 @@ describe('plugin protecao-android', () => {
     expect(nomes(filtroHome!.category)).toContain('android.intent.category.DEFAULT');
   });
 
+  it('mantém o intent-filter MAIN + LAUNCHER da MainActivity', () => {
+    const atividade = aplicarManifesto(manifestoMinimo()).manifest.application![0].activity![0];
+    const filtroLauncher = (atividade['intent-filter'] ?? []).find((f) =>
+      nomes(f.category).includes('android.intent.category.LAUNCHER'),
+    );
+    expect(filtroLauncher).toBeDefined();
+    expect(nomes(filtroLauncher!.action)).toContain('android.intent.action.MAIN');
+  });
+
   it('não duplica nada quando aplicado duas vezes', () => {
     const manifesto = aplicarManifesto(aplicarManifesto(manifestoMinimo()));
     const app = manifesto.manifest.application![0];

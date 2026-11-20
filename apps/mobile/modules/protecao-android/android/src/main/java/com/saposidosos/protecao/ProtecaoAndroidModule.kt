@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.records.Field
@@ -51,7 +52,7 @@ class ProtecaoAndroidModule : Module() {
         roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING),
         PEDIDO_PAPEL_TRIAGEM,
       )
-    }
+    }.runOnQueue(Queues.MAIN) // pedidoPapel só é tocado na main thread (como OnActivityResult)
 
     OnActivityResult { _, payload ->
       if (payload.requestCode != PEDIDO_PAPEL_TRIAGEM) return@OnActivityResult
