@@ -91,17 +91,17 @@ export default function Inicio() {
         {atalhos.map((atalho) => {
           const Icone = ICONES[atalho.id];
           return (
-          <Pressable
-            key={atalho.id}
-            accessibilityRole="button"
-            onPress={() => atalho.abrir().catch(() => undefined)}
-            style={[styles.tile, { backgroundColor: tema.surfaceCard }]}
-          >
-            <View style={[styles.icone, { backgroundColor: tema[COR_ICONE[atalho.id]] }]}>
-              <Icone size={30} color={tema.onBrand} strokeWidth={2.2} />
-            </View>
-            <Text style={[type.pAction, { color: tema.ink }]}>{atalho.rotulo}</Text>
-          </Pressable>
+            <Pressable
+              key={atalho.id}
+              accessibilityRole="button"
+              onPress={() => atalho.abrir().catch(() => undefined)}
+              style={[styles.tile, { backgroundColor: tema.surfaceCard }]}
+            >
+              <View style={[styles.icone, { backgroundColor: tema[COR_ICONE[atalho.id]] }]}>
+                <Icone size={30} color={tema.onBrand} strokeWidth={2.2} />
+              </View>
+              <Text style={[type.pAction, { color: tema.ink }]}>{atalho.rotulo}</Text>
+            </Pressable>
           );
         })}
       </View>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   aviso: {
-    minHeight: size.targetCompact,
+    minHeight: size.targetProtected,
     borderRadius: radius.md,
     paddingHorizontal: space[4],
     paddingVertical: space[2],

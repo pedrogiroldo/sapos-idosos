@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import { AppState, BackHandler, Linking, PermissionsAndroid } from 'react-native';
+import { AppState, BackHandler, Linking, PermissionsAndroid, StyleSheet } from 'react-native';
 
 import Inicio from '../app/inicio';
 import { atalhos } from '../src/atalhos';
@@ -125,7 +125,9 @@ describe('tela inicial', () => {
 
     tudoConcedido(false);
     await render(<Inicio />);
-    await fireEvent.press(await screen.findByText('Falta ativar a proteção'));
+    const aviso = await screen.findByRole('button', { name: 'Falta ativar a proteção' });
+    expect(StyleSheet.flatten(aviso.props.style).minHeight).toBeGreaterThanOrEqual(64);
+    await fireEvent.press(aviso);
     expect(router.push).toHaveBeenCalledWith('/primeira-execucao');
     expect(mockRedirect).not.toHaveBeenCalled();
   });
