@@ -8,6 +8,8 @@ declare class ProtecaoAndroidModule extends NativeModule<{}> {
   ehTelaInicialPadrao(): boolean;
   abrirEscolhaTelaInicial(): void;
   podeAvisar(): boolean;
+  cancelarAlerta(): void;
+  mostrarTelaChamada(): void;
   gravarBase(numeros: NumeroGolpe[], versao: number): void;
   adicionarNumeroTeste(numero: string, tipo: TipoGolpe): void;
   versaoBase(): number;

@@ -76,7 +76,27 @@ class ProtecaoAndroidModule : Module() {
       }
     }
 
+    // O serviço de triagem consulta isto para abrir o alerta direto quando o app está na frente.
+    OnActivityEntersForeground { AppVisivel.visivel = true }
+    OnActivityEntersBackground { AppVisivel.visivel = false }
+    OnActivityDestroys { AppVisivel.visivel = false }
+
     Function("podeAvisar") { AlertaNotificacao.podeAvisar(context) }
+
+    Function("cancelarAlerta") { AlertaNotificacao.cancelar(context) }
+
+    // Traz a tela da ligação do Android para a frente. Sem READ_PHONE_STATE, só tira o app da frente.
+    Function("mostrarTelaChamada") {
+      val permitido = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) ==
+        PackageManager.PERMISSION_GRANTED
+      if (permitido) {
+        context.getSystemService(TelecomManager::class.java).showInCallScreen(false)
+      } else {
+        val atividade = appContext.currentActivity
+        atividade?.runOnUiThread { atividade.moveTaskToBack(true) }
+      }
+      Unit
+    }
 
     Function("gravarBase") { numeros: List<NumeroGolpe>, versao: Int ->
       base().gravar(numeros.associate { it.numero to it.tipo }, versao)

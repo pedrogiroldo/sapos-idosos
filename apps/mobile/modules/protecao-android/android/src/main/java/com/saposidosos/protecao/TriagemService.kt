@@ -26,6 +26,7 @@ class TriagemService : CallScreeningService() {
         Decisao.Permitir -> Unit
         is Decisao.Avisar -> {
           AlertaNotificacao.mostrar(this, decisao.numero, decisao.tipo)
+          if (AppVisivel.visivel) abrirAlertaDireto(decisao.numero, decisao.tipo)
           resposta = CallResponse.Builder().setSilenceCall(true).build()
         }
         is Decisao.Bloquear -> {
@@ -45,6 +46,15 @@ class TriagemService : CallScreeningService() {
   }
 
   private fun permitir() = CallResponse.Builder().build()
+
+  // Com o app na frente, o Android pode mostrar a notificação só no topo; abre o alerta direto.
+  private fun abrirAlertaDireto(numero: String, tipo: String) {
+    try {
+      startActivity(AlertaNotificacao.intentAlerta(this, numero, tipo))
+    } catch (e: Exception) {
+      Log.w(TAG, "Não foi possível abrir o alerta direto; fica a notificação", e)
+    }
+  }
 
   companion object {
     private const val TAG = "TriagemService"

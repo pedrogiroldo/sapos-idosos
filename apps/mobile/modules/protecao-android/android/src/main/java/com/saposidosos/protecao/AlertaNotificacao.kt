@@ -11,27 +11,46 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
+/**
+ * O app só avisa com notificações ligadas, tela cheia permitida e o canal do alerta não desligado.
+ * `importanciaCanal` é `null` enquanto o canal ainda não foi criado (ele nasce com importância alta).
+ */
+fun podeAvisarCom(notificacoesAtivas: Boolean, fsiPermitido: Boolean, importanciaCanal: Int?): Boolean =
+  notificacoesAtivas && fsiPermitido && importanciaCanal != NotificationManager.IMPORTANCE_NONE
+
 /** Notificação em tela cheia que abre o alerta do app durante uma ligação suspeita. */
 object AlertaNotificacao {
   const val CANAL = "alerta_ligacao"
   private const val ID_NOTIFICACAO = 4001
 
-  /** Notificações ligadas e, no Android 14+, permissão de abrir em tela cheia. */
+  /** Notificações ligadas, canal do alerta ativo e, no Android 14+, permissão de abrir em tela cheia. */
   fun podeAvisar(context: Context): Boolean {
-    if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
-    return context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+    val gerenciador = context.getSystemService(NotificationManager::class.java)
+    val fsiPermitido = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+      gerenciador.canUseFullScreenIntent()
+    return podeAvisarCom(
+      NotificationManagerCompat.from(context).areNotificationsEnabled(),
+      fsiPermitido,
+      gerenciador.getNotificationChannel(CANAL)?.importance,
+    )
+  }
+
+  fun cancelar(context: Context) {
+    NotificationManagerCompat.from(context).cancel(ID_NOTIFICACAO)
   }
 
   fun linkAlerta(numero: String, tipo: String): Uri =
     Uri.parse("saposidosos://alerta-ligacao?numero=${Uri.encode(numero)}&tipo=${Uri.encode(tipo)}")
 
+  fun intentAlerta(context: Context, numero: String, tipo: String): Intent =
+    Intent(Intent.ACTION_VIEW, linkAlerta(numero, tipo))
+      .setPackage(context.packageName)
+      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
   @SuppressLint("MissingPermission") // podeAvisar() confere antes de a triagem chamar mostrar()
   fun mostrar(context: Context, numero: String, tipo: String) {
     criarCanal(context)
-    val intent = Intent(Intent.ACTION_VIEW, linkAlerta(numero, tipo))
-      .setPackage(context.packageName)
-      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val intent = intentAlerta(context, numero, tipo)
     val abrirAlerta = PendingIntent.getActivity(
       context,
       0,

@@ -3,9 +3,13 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import AlertaLigacao from '../app/alerta-ligacao';
-import { encerrarChamada } from '../modules/protecao-android';
+import { cancelarAlerta, encerrarChamada, mostrarTelaChamada } from '../modules/protecao-android';
 
-jest.mock('../modules/protecao-android', () => ({ encerrarChamada: jest.fn() }));
+jest.mock('../modules/protecao-android', () => ({
+  encerrarChamada: jest.fn(),
+  cancelarAlerta: jest.fn(),
+  mostrarTelaChamada: jest.fn(),
+}));
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(),
   NotificationFeedbackType: { Warning: 'warning' },
@@ -16,12 +20,16 @@ jest.mock('expo-router', () => ({
 }));
 
 const encerrar = encerrarChamada as jest.Mock;
+const cancelar = cancelarAlerta as jest.Mock;
+const mostrarChamada = mostrarTelaChamada as jest.Mock;
 const replace = router.replace as jest.Mock;
 const params = useLocalSearchParams as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   encerrar.mockReturnValue(true);
+  cancelar.mockReset();
+  mostrarChamada.mockReset();
   params.mockReturnValue({ numero: '+5511900000001', tipo: 'falso_banco' });
 });
 
@@ -52,11 +60,13 @@ describe('tela de alerta da ligação', () => {
     expect(botoes[1]).toHaveTextContent('Atender mesmo assim');
   });
 
-  it('"Não atender" encerra a chamada e vai para o início', async () => {
+  it('"Não atender" cancela o aviso, encerra a chamada e vai para o início', async () => {
     await render(<AlertaLigacao />);
     await fireEvent.press(screen.getByText('Não atender'));
+    expect(cancelar).toHaveBeenCalledTimes(1);
     expect(encerrar).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith('/inicio');
+    expect(cancelar.mock.invocationCallOrder[0]).toBeLessThan(encerrar.mock.invocationCallOrder[0]);
     expect(encerrar.mock.invocationCallOrder[0]).toBeLessThan(replace.mock.invocationCallOrder[0]);
   });
 
@@ -76,10 +86,35 @@ describe('tela de alerta da ligação', () => {
     expect(replace).toHaveBeenCalledWith('/inicio');
   });
 
-  it('"Atender mesmo assim" não encerra e vai para o início', async () => {
+  it('"Atender mesmo assim" cancela o aviso, mostra a tela da ligação e vai para o início', async () => {
     await render(<AlertaLigacao />);
     await fireEvent.press(screen.getByText('Atender mesmo assim'));
     expect(encerrar).not.toHaveBeenCalled();
+    expect(cancelar).toHaveBeenCalledTimes(1);
+    expect(mostrarChamada).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith('/inicio');
+    expect(cancelar.mock.invocationCallOrder[0]).toBeLessThan(mostrarChamada.mock.invocationCallOrder[0]);
+    expect(mostrarChamada.mock.invocationCallOrder[0]).toBeLessThan(replace.mock.invocationCallOrder[0]);
+  });
+
+  it('"Atender mesmo assim" vai para o início mesmo se a tela da ligação falhar', async () => {
+    mostrarChamada.mockImplementation(() => {
+      throw new Error('falhou');
+    });
+    await render(<AlertaLigacao />);
+    await fireEvent.press(screen.getByText('Atender mesmo assim'));
+    expect(replace).toHaveBeenCalledWith('/inicio');
+  });
+
+  it('os botões fecham mesmo se cancelar o aviso falhar', async () => {
+    cancelar.mockImplementation(() => {
+      throw new Error('falhou');
+    });
+    await render(<AlertaLigacao />);
+    await fireEvent.press(screen.getByText('Não atender'));
+    expect(encerrar).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByText('Atender mesmo assim'));
+    expect(mostrarChamada).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledTimes(2);
   });
 });
