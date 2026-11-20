@@ -1,12 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { AppState, Linking, PermissionsAndroid, Platform } from 'react-native';
 
 import PrimeiraExecucao from '../app/primeira-execucao';
 import * as nativo from '../modules/protecao-android';
-import { proximaPendente } from '../src/estadoPermissoes';
+import { proximaPendente, reiniciarEstadoDaExecucao } from '../src/estadoPermissoes';
 
 const mockRedirect = jest.fn();
 jest.mock('expo-router', () => ({
+  router: { replace: jest.fn() },
   Redirect: ({ href }: { href: string }) => {
     mockRedirect(href);
     return null;
@@ -32,6 +34,7 @@ function definir(e: typeof todos) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  reiniciarEstadoDaExecucao();
   definir(todos);
 });
 
@@ -121,5 +124,45 @@ describe('primeira execução', () => {
     definir({ ...todos, triagem: false });
     await act(async () => aoMudar('active'));
     expect(await screen.findByText('Ativar aviso de golpe')).toBeTruthy();
+  });
+
+  it('"Fazer isso depois" vai para /inicio', async () => {
+    definir({ ...todos, triagem: false });
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Fazer isso depois'));
+    expect(router.replace).toHaveBeenCalledWith('/inicio');
+  });
+
+  it.each(['denied', 'never_ask_again'] as const)(
+    'encerrar: resultado "%s" abre as configurações',
+    async (resultado) => {
+      definir({ ...todos, encerrar: false });
+      jest.spyOn(PermissionsAndroid, 'request').mockResolvedValue(resultado);
+      const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+      await render(<PrimeiraExecucao />);
+      await fireEvent.press(await screen.findByText('Permitir desligar golpista'));
+      expect(abrir).toHaveBeenCalled();
+    },
+  );
+
+  it('encerrar: concedido não abre as configurações', async () => {
+    definir({ ...todos, encerrar: false });
+    jest.spyOn(PermissionsAndroid, 'request').mockResolvedValue('granted');
+    const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Permitir desligar golpista'));
+    expect(abrir).not.toHaveBeenCalled();
+  });
+
+  it('triagem: se o papel for negado, o toque seguinte abre as configurações', async () => {
+    definir({ ...todos, triagem: false });
+    mock(nativo.pedirPapelTriagem).mockResolvedValue(false);
+    const abrir = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    await render(<PrimeiraExecucao />);
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    expect(abrir).not.toHaveBeenCalled();
+    await fireEvent.press(await screen.findByText('Ativar aviso de golpe'));
+    expect(abrir).toHaveBeenCalledTimes(1);
+    expect(nativo.pedirPapelTriagem).toHaveBeenCalledTimes(1);
   });
 });

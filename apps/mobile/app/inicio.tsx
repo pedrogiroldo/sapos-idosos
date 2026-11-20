@@ -1,13 +1,19 @@
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Camera, Image as Foto, MessageCircle, Phone, ShieldCheck } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { atalhos, type AtalhoId } from '../src/atalhos';
-import { proximaPendente, usePermissoes } from '../src/estadoPermissoes';
+import { consumirPrimeiraVisita, proximaPendente, usePermissoes } from '../src/estadoPermissoes';
 import { radius, size, space, type } from '../src/theme';
 import { useTema } from '../src/useTema';
 
-const ICONES: Record<AtalhoId, string> = { ligar: '📞', whatsapp: '💬', camera: '📷', fotos: '🖼️' };
+const ICONES: Record<AtalhoId, typeof Phone> = {
+  ligar: Phone,
+  whatsapp: MessageCircle,
+  camera: Camera,
+  fotos: Foto,
+};
 const COR_ICONE: Record<AtalhoId, 'safe' | 'brand'> = {
   ligar: 'safe',
   whatsapp: 'safe',
@@ -20,8 +26,18 @@ const maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 function useAgora() {
   const [agora, setAgora] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setAgora(new Date()), 60_000);
-    return () => clearInterval(id);
+    // Primeira batida no começo do próximo minuto, depois a cada 60s.
+    let intervalo: ReturnType<typeof setInterval> | undefined;
+    const atualizar = () => setAgora(new Date());
+    const espera = 60_000 - (Date.now() % 60_000);
+    const inicio = setTimeout(() => {
+      atualizar();
+      intervalo = setInterval(atualizar, 60_000);
+    }, espera);
+    return () => {
+      clearTimeout(inicio);
+      if (intervalo) clearInterval(intervalo);
+    };
   }, []);
   return agora;
 }
@@ -30,6 +46,7 @@ export default function Inicio() {
   const tema = useTema();
   const { estado } = usePermissoes();
   const agora = useAgora();
+  const redirecionar = useRef<boolean | null>(null);
 
   // Tela inicial do celular: "voltar" não sai do app.
   useEffect(() => {
@@ -38,7 +55,9 @@ export default function Inicio() {
   }, []);
 
   if (!estado) return <View style={[styles.tela, { backgroundColor: tema.surfacePage }]} />;
-  if (proximaPendente(estado)) return <Redirect href="/primeira-execucao" />;
+  const pendente = proximaPendente(estado) !== null;
+  if (redirecionar.current === null) redirecionar.current = consumirPrimeiraVisita() && pendente;
+  if (redirecionar.current && pendente) return <Redirect href="/primeira-execucao" />;
 
   const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const data = maiuscula(
@@ -53,12 +72,25 @@ export default function Inicio() {
         </Pressable>
         <Text style={[type.pBody, { color: tema.inkMuted }]}>{data}</Text>
         <View style={[styles.selo, { backgroundColor: tema.safeSoft }]}>
-          <Text style={[type.fSmall, styles.seloTexto, { color: tema.safeInk }]}>Protegida</Text>
+          <ShieldCheck size={20} color={tema.safeInk} strokeWidth={2.2} />
+          <Text style={[type.pLabel, { color: tema.safeInk }]}>Protegida</Text>
         </View>
       </View>
 
+      {pendente ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/primeira-execucao')}
+          style={[styles.aviso, { backgroundColor: tema.cautionSoft }]}
+        >
+          <Text style={[type.pLabel, { color: tema.cautionInk }]}>Falta ativar a proteção</Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.grade}>
-        {atalhos.map((atalho) => (
+        {atalhos.map((atalho) => {
+          const Icone = ICONES[atalho.id];
+          return (
           <Pressable
             key={atalho.id}
             accessibilityRole="button"
@@ -66,11 +98,12 @@ export default function Inicio() {
             style={[styles.tile, { backgroundColor: tema.surfaceCard }]}
           >
             <View style={[styles.icone, { backgroundColor: tema[COR_ICONE[atalho.id]] }]}>
-              <Text style={styles.emoji}>{ICONES[atalho.id]}</Text>
+              <Icone size={30} color={tema.onBrand} strokeWidth={2.2} />
             </View>
             <Text style={[type.pAction, { color: tema.ink }]}>{atalho.rotulo}</Text>
           </Pressable>
-        ))}
+          );
+        })}
       </View>
 
       <Pressable
@@ -89,12 +122,15 @@ const styles = StyleSheet.create({
   cabecalho: { gap: space[1] },
   selo: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     marginTop: space[2],
     borderRadius: radius.full,
     paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingLeft: 10,
+    paddingRight: 14,
   },
-  seloTexto: { fontWeight: '600' },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: space[3] },
   tile: {
     width: '48%',
@@ -111,7 +147,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emoji: { fontSize: 28 },
+  aviso: {
+    minHeight: size.targetCompact,
+    borderRadius: radius.md,
+    paddingHorizontal: space[4],
+    paddingVertical: space[2],
+    justifyContent: 'center',
+  },
   botao: {
     marginTop: 'auto',
     minHeight: size.targetProtected,

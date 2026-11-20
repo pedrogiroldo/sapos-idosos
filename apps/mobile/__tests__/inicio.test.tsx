@@ -4,6 +4,7 @@ import { AppState, BackHandler, Linking, PermissionsAndroid } from 'react-native
 
 import Inicio from '../app/inicio';
 import { atalhos } from '../src/atalhos';
+import { reiniciarEstadoDaExecucao } from '../src/estadoPermissoes';
 import * as nativo from '../modules/protecao-android';
 
 const mockRedirect = jest.fn();
@@ -34,6 +35,7 @@ function tudoConcedido(concedido: boolean) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  reiniciarEstadoDaExecucao();
   jest.useFakeTimers({ now: new Date(2026, 10, 19, 14, 30), advanceTimers: true });
   tudoConcedido(true);
 });
@@ -56,6 +58,20 @@ describe('tela inicial', () => {
     await screen.findByText('14:30');
     await act(async () => {
       jest.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText('14:31')).toBeTruthy();
+  });
+
+  it('alinha a primeira batida ao próximo minuto', async () => {
+    jest.setSystemTime(new Date(2026, 10, 19, 14, 30, 45));
+    await render(<Inicio />);
+    await screen.findByText('14:30');
+    await act(async () => {
+      jest.advanceTimersByTime(14_000);
+    });
+    expect(screen.getByText('14:30')).toBeTruthy();
+    await act(async () => {
+      jest.advanceTimersByTime(1_000);
     });
     expect(screen.getByText('14:31')).toBeTruthy();
   });
@@ -87,14 +103,34 @@ describe('tela inicial', () => {
     expect(abrir).toHaveBeenCalledWith('tel:');
   });
 
-  it('com permissão pendente, redireciona para a primeira execução', async () => {
+  it('com permissão pendente, redireciona só na primeira visita da execução', async () => {
     tudoConcedido(false);
-    await render(<Inicio />);
+    const primeira = await render(<Inicio />);
     await waitFor(() => expect(mockRedirect).toHaveBeenCalledWith('/primeira-execucao'));
     expect(screen.queryByText('Isso é golpe?')).toBeNull();
+
+    mockRedirect.mockClear();
+    await primeira.unmount();
+    await render(<Inicio />);
+    expect(await screen.findByText('Isso é golpe?')).toBeTruthy();
+    expect(mockRedirect).not.toHaveBeenCalled();
   });
 
-  it('relê as permissões quando o app volta ao primeiro plano', async () => {
+  it('depois da primeira visita, mostra o aviso "Falta ativar a proteção" que abre a configuração', async () => {
+    tudoConcedido(true);
+    const primeira = await render(<Inicio />);
+    await screen.findByText('Isso é golpe?');
+    expect(screen.queryByText('Falta ativar a proteção')).toBeNull();
+    await primeira.unmount();
+
+    tudoConcedido(false);
+    await render(<Inicio />);
+    await fireEvent.press(await screen.findByText('Falta ativar a proteção'));
+    expect(router.push).toHaveBeenCalledWith('/primeira-execucao');
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it('relê as permissões ao voltar ao app e mostra o aviso, sem redirecionar', async () => {
     let aoMudar: (estado: string) => void = () => undefined;
     jest.spyOn(AppState, 'addEventListener').mockImplementation((_, f) => {
       aoMudar = f as typeof aoMudar;
@@ -104,7 +140,8 @@ describe('tela inicial', () => {
     await screen.findByText('Isso é golpe?');
     tudoConcedido(false);
     await act(async () => aoMudar('active'));
-    await waitFor(() => expect(mockRedirect).toHaveBeenCalledWith('/primeira-execucao'));
+    expect(await screen.findByText('Falta ativar a proteção')).toBeTruthy();
+    expect(mockRedirect).not.toHaveBeenCalled();
   });
 });
 

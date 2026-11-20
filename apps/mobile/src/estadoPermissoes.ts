@@ -12,6 +12,22 @@ import {
 export type Passo = 'telaInicial' | 'triagem' | 'avisar' | 'encerrar';
 export type EstadoPermissoes = Record<Passo, boolean>;
 
+// Estado do módulo, vale por execução do app.
+let primeiraVisitaFeita = false;
+let triagemNegada = false;
+
+/** Só a primeira visita a /inicio em cada execução do app redireciona para a configuração. */
+export function consumirPrimeiraVisita(): boolean {
+  const eraPrimeira = !primeiraVisitaFeita;
+  primeiraVisitaFeita = true;
+  return eraPrimeira;
+}
+
+export function reiniciarEstadoDaExecucao() {
+  primeiraVisitaFeita = false;
+  triagemNegada = false;
+}
+
 const ORDEM: Passo[] = ['telaInicial', 'triagem', 'avisar', 'encerrar'];
 
 export async function estadoPermissoes(): Promise<EstadoPermissoes> {
@@ -33,7 +49,11 @@ export async function executarPasso(passo: Passo): Promise<void> {
       abrirEscolhaTelaInicial();
       return;
     case 'triagem':
-      await pedirPapelTriagem();
+      if (triagemNegada) {
+        await Linking.openSettings();
+        return;
+      }
+      triagemNegada = !(await pedirPapelTriagem());
       return;
     case 'avisar':
       if (Number(Platform.Version) >= 33) {
@@ -43,7 +63,12 @@ export async function executarPasso(passo: Passo): Promise<void> {
       if (!podeAvisar()) await Linking.openSettings();
       return;
     case 'encerrar':
-      await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS);
+      if (
+        (await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS)) !==
+        PermissionsAndroid.RESULTS.GRANTED
+      ) {
+        await Linking.openSettings();
+      }
       return;
   }
 }

@@ -3,6 +3,10 @@ module.exports = {
     {
       displayName: 'app',
       preset: 'jest-expo',
+      // O pacote publica ESM (.mjs) para o bundler; o Jest usa a build CommonJS.
+      moduleNameMapper: {
+        '^lucide-react-native$': '<rootDir>/../../node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
+      },
       testPathIgnorePatterns: ['/node_modules/', '<rootDir>/modules/[^/]+/plugin/'],
     },
     {

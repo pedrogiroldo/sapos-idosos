@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { executarPasso, proximaPendente, usePermissoes, type Passo } from '../src/estadoPermissoes';
@@ -51,15 +51,22 @@ export default function PrimeiraExecucao() {
       >
         <Text style={[type.pAction, { color: tema.onBrand }]}>{botao}</Text>
       </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.replace('/inicio')}
+        style={[styles.botao, styles.depois, { backgroundColor: tema.fill }]}
+      >
+        <Text style={[type.pAction, { color: tema.ink }]}>Fazer isso depois</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   tela: { flex: 1, padding: space[5], paddingTop: space[12], paddingBottom: space[8] },
-  texto: { gap: space[4] },
+  texto: { gap: space[4], marginBottom: 'auto' },
+  depois: { marginTop: space[3] },
   botao: {
-    marginTop: 'auto',
     minHeight: size.targetProtected,
     borderRadius: radius.full,
     alignItems: 'center',
